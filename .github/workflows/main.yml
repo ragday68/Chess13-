@@ -14,13 +14,29 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - name: Build
+      - name: Prepare
         run: |
           mkdir -p www
           cp index.html manifest.webmanifest sw.js icon-192.png icon-512.png www/
           npm install
           npx cap add android
           npx cap sync android
+          mkdir -p ~/.android
+          if [ -f debug.keystore ]; then cp debug.keystore ~/.android/debug.keystore; fi
+      - name: Icons
+        continue-on-error: true
+        run: |
+          IM=$(command -v magick || command -v convert)
+          R=android/app/src/main/res
+          for p in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            d=${p%%:*}; s=${p##*:}
+            for n in ic_launcher ic_launcher_round; do
+              $IM icon-512.png -resize ${s}x${s} $R/mipmap-$d/$n.png
+            done
+          done
+          rm -rf $R/mipmap-anydpi-v26
+      - name: Gradle
+        run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -28,3 +44,4 @@ jobs:
         with:
           name: chess13-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          
